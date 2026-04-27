@@ -1,0 +1,91 @@
+//@version=6
+strategy("EAP Break & Retest Strategy", overlay=true,
+         default_qty_type=strategy.percent_of_equity,
+         default_qty_value=1,
+         initial_capital=10000,
+         commission_type=strategy.commission.percent,
+         commission_value=0.05)
+
+// ── Inputs ───────────────────────────────────────────────────────────────────
+i_ema20     = input.int(20,   "Trend EMA (20)",        minval=1)
+i_ema50     = input.int(50,   "Mid EMA (50)",          minval=1)
+i_ema200    = input.int(200,  "Long EMA (200)",        minval=1)
+i_atr_len   = input.int(14,   "ATR Period",            minval=1)
+i_atr_stop  = input.float(1.0,"ATR Stop Multiplier",   minval=0.1, step=0.1)
+i_atr_tgt   = input.float(2.0,"ATR Target Multiplier", minval=0.1, step=0.1)
+i_lb        = input.int(5,    "Swing Lookback",        minval=2)
+i_zone      = input.float(0.5,"Zone Width (ATR)",      minval=0.1, step=0.1)
+
+// ── Core Indicators ──────────────────────────────────────────────────────────
+ema20  = ta.ema(close, i_ema20)
+ema50  = ta.ema(close, i_ema50)
+ema200 = ta.ema(close, i_ema200)
+atr14  = ta.atr(i_atr_len)
+
+// ── Trend Filter ─────────────────────────────────────────────────────────────
+uptrend   = close > ema20
+downtrend = close < ema20
+
+// ── Pivot Points ─────────────────────────────────────────────────────────────
+ph = ta.pivothigh(high, i_lb, i_lb)
+pl = ta.pivotlow(low,   i_lb, i_lb)
+
+var float last_ph = na
+var float last_pl = na
+
+if not na(ph)
+    last_ph := ph
+if not na(pl)
+    last_pl := pl
+
+// ── Retest Zone ──────────────────────────────────────────────────────────────
+zone_w  = atr14 * i_zone
+near_ph = not na(last_ph) and low  <= last_ph + zone_w and close >= last_ph - zone_w
+near_pl = not na(last_pl) and high >= last_pl - zone_w and close <= last_pl + zone_w
+
+// ── Entry Patterns ────────────────────────────────────────────────────────────
+bull_eng = close > open and close[1] < open[1] and (close - open) > (open[1] - close[1])
+bear_eng = close < open and close[1] > open[1] and (open - close) > (close[1] - open[1])
+
+c_range  = high - low
+bull_382 = c_range > 0 and close > open and math.min(open, close) >= low  + c_range * 0.382
+bear_382 = c_range > 0 and close < open and math.max(open, close) <= high - c_range * 0.382
+
+bull_sig = bull_eng or bull_382 or (close > high[1])
+bear_sig = bear_eng or bear_382 or (close < low[1])
+
+// ── Entry Conditions ─────────────────────────────────────────────────────────
+long_ok  = uptrend   and near_ph and bull_sig and strategy.position_size == 0
+short_ok = downtrend and near_pl and bear_sig and strategy.position_size == 0
+
+// ── Stop & Target ────────────────────────────────────────────────────────────
+long_sl  = ta.lowest(low,   i_lb) - atr14 * i_atr_stop
+short_sl = ta.highest(high, i_lb) + atr14 * i_atr_stop
+long_tp  = close + atr14 * i_atr_tgt * 2.0
+short_tp = close - atr14 * i_atr_tgt * 2.0
+
+// ── Execute ──────────────────────────────────────────────────────────────────
+if long_ok
+    strategy.entry("Long", strategy.long)
+    strategy.exit("Long Exit", from_entry="Long", stop=long_sl, limit=long_tp)
+
+if short_ok
+    strategy.entry("Short", strategy.short)
+    strategy.exit("Short Exit", from_entry="Short", stop=short_sl, limit=short_tp)
+
+// ── Plots ────────────────────────────────────────────────────────────────────
+plot(ema20,  "EMA 20",  color=color.yellow, linewidth=1)
+plot(ema50,  "EMA 50",  color=color.blue,   linewidth=1)
+plot(ema200, "EMA 200", color=color.red,    linewidth=2)
+
+plot(not na(last_ph) ? last_ph : na, "Last Pivot High",
+     color=color.new(color.green, 50), style=plot.style_linebr, linewidth=1)
+plot(not na(last_pl) ? last_pl : na, "Last Pivot Low",
+     color=color.new(color.red,   50), style=plot.style_linebr, linewidth=1)
+
+plotshape(long_ok,  "Long",  shape.triangleup,   location.belowbar,
+          color=color.lime, size=size.normal, text="L")
+plotshape(short_ok, "Short", shape.triangledown, location.abovebar,
+          color=color.red,  size=size.normal, text="S")
+
+bgcolor(uptrend ? color.new(color.green, 96) : color.new(color.red, 96), title="Trend BG")

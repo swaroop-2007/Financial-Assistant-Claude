@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__tradingview__chart_set_symbol",
+      "mcp__tradingview__watchlist_get",
+      "mcp__tradingview__data_get_study_values",
+      "mcp__tradingview__quote_get",
+      "mcp__tradingview__chart_set_timeframe",
+      "mcp__tradingview__watchlist_add",
+      "WebFetch(domain:youtubetranscript.com)",
+      "Bash(curl -s \"http://localhost:3000/api/quote/%5EGSPC\")",
+      "Bash(node -e ' *)",
+      "Bash(npm install *)",
+      "Bash(curl -s -I \"https://finance.yahoo.com\" -H \"User-Agent: Mozilla/5.0\")",
+      "Bash(curl -s \"https://query1.finance.yahoo.com/v7/finance/download/AAPL?period1=1700000000&period2=1714000000&interval=1d&events=history\" -H \"User-Agent: Mozilla/5.0 \\(Macintosh; Intel Mac OS X 10_15_7\\) AppleWebKit/537.36\")",
+      "Bash(python3 *)"
+    ]
+  }
+}

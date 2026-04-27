@@ -1,0 +1,19 @@
+[
+  { "id": "SPX",    "tv": "SP:SPX",            "yahoo": "^GSPC",    "label": "S&P 500",          "type": "index" },
+  { "id": "NDQ",    "tv": "TVC:NDQ",            "yahoo": "^NDX",     "label": "NASDAQ 100",       "type": "index" },
+  { "id": "DJI",    "tv": "TVC:DJI",            "yahoo": "^DJI",     "label": "Dow Jones",        "type": "index" },
+  { "id": "VIX",    "tv": "CBOE:VIX",           "yahoo": "^VIX",     "label": "VIX",              "type": "index" },
+  { "id": "DXY",    "tv": "TVC:DXY",            "yahoo": "DX=F",     "label": "US Dollar Index",  "type": "forex" },
+  { "id": "AAPL",   "tv": "NASDAQ:AAPL",        "yahoo": "AAPL",     "label": "Apple",            "type": "stock" },
+  { "id": "TSLA",   "tv": "NASDAQ:TSLA",        "yahoo": "TSLA",     "label": "Tesla",            "type": "stock" },
+  { "id": "NFLX",   "tv": "NASDAQ:NFLX",        "yahoo": "NFLX",     "label": "Netflix",          "type": "stock" },
+  { "id": "NVDA",   "tv": "NASDAQ:NVDA",        "yahoo": "NVDA",     "label": "NVIDIA",           "type": "stock" },
+  { "id": "USOIL",  "tv": "TVC:USOIL",          "yahoo": "CL=F",     "label": "WTI Crude Oil",    "type": "commodity" },
+  { "id": "GOLD",   "tv": "TVC:GOLD",           "yahoo": "GC=F",     "label": "Gold",             "type": "commodity" },
+  { "id": "SILVER", "tv": "TVC:SILVER",         "yahoo": "SI=F",     "label": "Silver",           "type": "commodity" },
+  { "id": "EURUSD", "tv": "FX:EURUSD",          "yahoo": "EURUSD=X", "label": "EUR/USD",          "type": "forex" },
+  { "id": "GBPUSD", "tv": "FX:GBPUSD",          "yahoo": "GBPUSD=X", "label": "GBP/USD",          "type": "forex" },
+  { "id": "USDJPY", "tv": "FX:USDJPY",          "yahoo": "JPY=X",    "label": "USD/JPY",          "type": "forex" },
+  { "id": "BTCUSD", "tv": "BITSTAMP:BTCUSD",    "yahoo": "BTC-USD",  "label": "Bitcoin",          "type": "crypto" },
+  { "id": "ETHUSD", "tv": "BITSTAMP:ETHUSD",    "yahoo": "ETH-USD",  "label": "Ethereum",         "type": "crypto" }
+]

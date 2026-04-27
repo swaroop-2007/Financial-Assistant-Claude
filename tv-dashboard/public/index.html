@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TV Dashboard</title>
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root {
+    --bg:      #0f1117;
+    --surface: #161b22;
+    --border:  #21262d;
+    --text:    #c9d1d9;
+    --muted:   #8b949e;
+    --green:   #26a69a;
+    --red:     #ef5350;
+    --yellow:  #f0b429;
+    --blue:    #58a6ff;
+    --purple:  #bc8cff;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; }
+  .tab-btn { padding: 8px 20px; border-bottom: 2px solid transparent; cursor: pointer; color: var(--muted); transition: all .2s; font-size: 14px; }
+  .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
+  .tab-btn:hover:not(.active) { color: var(--text); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; letter-spacing: .5px; }
+  .badge-long    { background: rgba(38,166,154,.15); color: #26a69a; }
+  .badge-short   { background: rgba(239,83,80,.15);  color: #ef5350; }
+  .badge-neutral { background: rgba(139,148,158,.15); color: #8b949e; }
+  .score-bar { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 3px; transition: width .4s; }
+  .chart-container { width: 100%; height: 420px; border-radius: 6px; overflow: hidden; }
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .symbol-row { border-bottom: 1px solid var(--border); padding: 12px 16px; cursor: pointer; transition: background .15s; }
+  .symbol-row:hover { background: rgba(255,255,255,.03); }
+  .symbol-row.active { background: rgba(88,166,255,.06); border-left: 2px solid var(--blue); }
+  input, select { background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 8px 12px; font-size: 13px; outline: none; }
+  input:focus, select:focus { border-color: var(--blue); }
+  button.btn-primary { background: var(--blue); color: #000; border: none; border-radius: 6px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity .2s; }
+  button.btn-primary:hover { opacity: .85; }
+  button.btn-danger { background: transparent; border: 1px solid var(--red); color: var(--red); border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; transition: background .15s; }
+  button.btn-danger:hover { background: rgba(239,83,80,.1); }
+  button.btn-sm { background: var(--surface); border: 1px solid var(--border); color: var(--muted); border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; transition: all .15s; }
+  button.btn-sm:hover { border-color: var(--blue); color: var(--blue); }
+  .narrative-section { border-left: 3px solid var(--blue); padding-left: 12px; margin-bottom: 16px; }
+  .level-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--border); border-radius: 4px; padding: 4px 10px; font-size: 12px; margin: 3px; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<div class="flex items-center justify-between px-6 py-3 border-b" style="border-color:var(--border);background:var(--surface)">
+  <div class="flex items-center gap-3">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    <span class="font-semibold text-base" style="color:var(--text)">TV Dashboard</span>
+  </div>
+  <div class="flex items-center gap-3 text-xs" style="color:var(--muted)">
+    <span id="last-updated">—</span>
+    <div id="loader" class="hidden">
+      <svg class="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+    </div>
+  </div>
+</div>
+
+<!-- ── Tabs ───────────────────────────────────────────────────────────────── -->
+<div class="flex border-b px-6" style="border-color:var(--border);background:var(--surface)">
+  <button class="tab-btn active" onclick="showTab('brief')">Daily Brief</button>
+  <button class="tab-btn" onclick="showTab('scanner')">EAP Scanner</button>
+  <button class="tab-btn" onclick="showTab('chart')">Chart Analyzer</button>
+  <button class="tab-btn" onclick="showTab('watchlist')">Watchlist</button>
+</div>
+
+<!-- ── Tab Content ─────────────────────────────────────────────────────────── -->
+<div id="app" class="p-4 md:p-6 max-w-7xl mx-auto">
+
+  <!-- Daily Brief -->
+  <div id="tab-brief">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h2 class="text-lg font-semibold">Daily Brief</h2>
+        <p class="text-xs mt-1" style="color:var(--muted)">Weekly bias · key level · what to watch</p>
+      </div>
+      <button class="btn-primary" onclick="loadBrief()">Generate Brief</button>
+    </div>
+    <div id="brief-summary" class="card p-4 mb-4 hidden text-sm" style="color:var(--muted)"></div>
+    <div id="brief-content" class="space-y-3"></div>
+  </div>
+
+  <!-- EAP Scanner -->
+  <div id="tab-scanner" class="hidden">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h2 class="text-lg font-semibold">EAP Break &amp; Retest Scanner</h2>
+        <p class="text-xs mt-1" style="color:var(--muted)">Ranked by proximity to entry zone · Daily timeframe</p>
+      </div>
+      <button class="btn-primary" onclick="loadScanner()">Refresh Scan</button>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-1">
+        <div class="card overflow-hidden">
+          <div id="scanner-list" class="divide-y" style="border-color:var(--border)">
+            <div class="p-6 text-center text-sm" style="color:var(--muted)">Click "Refresh Scan" to run</div>
+          </div>
+        </div>
+      </div>
+      <div class="lg:col-span-2">
+        <div id="scanner-detail" class="card p-4 h-full">
+          <div class="flex items-center justify-center h-64" style="color:var(--muted)">
+            <div class="text-center">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="mx-auto mb-2 opacity-40"><rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="3 9 21 9"/><polyline points="9 21 9 9"/></svg>
+              <div class="text-sm">Select a symbol to view chart</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart Analyzer -->
+  <div id="tab-chart" class="hidden">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h2 class="text-lg font-semibold">Chart Analyzer</h2>
+        <p class="text-xs mt-1" style="color:var(--muted)">Senior-trader narrative · trend · momentum · key levels</p>
+      </div>
+    </div>
+    <div class="flex gap-3 mb-4">
+      <select id="chart-symbol" class="flex-1 max-w-xs" onchange="loadChartAnalysis()">
+        <option value="">Select symbol…</option>
+      </select>
+      <select id="chart-tf" onchange="loadChartAnalysis()">
+        <option value="1d">Daily</option>
+        <option value="1wk">Weekly</option>
+      </select>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-2">
+        <div class="card p-3">
+          <div id="chart-main" class="chart-container"></div>
+        </div>
+      </div>
+      <div class="lg:col-span-1 space-y-4">
+        <div id="narrative-panel" class="card p-4">
+          <div class="text-sm" style="color:var(--muted)">Select a symbol to analyse</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Watchlist -->
+  <div id="tab-watchlist" class="hidden">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h2 class="text-lg font-semibold">Watchlist</h2>
+        <p class="text-xs mt-1" style="color:var(--muted)">Add or remove symbols tracked across all tabs</p>
+      </div>
+    </div>
+    <!-- Add Symbol -->
+    <div class="card p-4 mb-6">
+      <h3 class="text-sm font-semibold mb-3">Add Symbol</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+        <div>
+          <label class="block text-xs mb-1" style="color:var(--muted)">ID (short name)</label>
+          <input id="add-id" type="text" placeholder="META" class="w-full"/>
+        </div>
+        <div>
+          <label class="block text-xs mb-1" style="color:var(--muted)">Yahoo Finance Ticker</label>
+          <input id="add-yahoo" type="text" placeholder="META" class="w-full"/>
+        </div>
+        <div>
+          <label class="block text-xs mb-1" style="color:var(--muted)">Label</label>
+          <input id="add-label" type="text" placeholder="Meta Platforms" class="w-full"/>
+        </div>
+        <div>
+          <label class="block text-xs mb-1" style="color:var(--muted)">TradingView Symbol (optional)</label>
+          <input id="add-tv" type="text" placeholder="NASDAQ:META" class="w-full"/>
+        </div>
+        <div>
+          <label class="block text-xs mb-1" style="color:var(--muted)">Type</label>
+          <select id="add-type" class="w-full">
+            <option value="stock">Stock</option>
+            <option value="crypto">Crypto</option>
+            <option value="forex">Forex</option>
+            <option value="index">Index</option>
+            <option value="commodity">Commodity</option>
+          </select>
+        </div>
+        <div class="flex items-end">
+          <button class="btn-primary w-full" onclick="addSymbol()">Add Symbol</button>
+        </div>
+      </div>
+      <div id="add-error" class="mt-2 text-xs hidden" style="color:var(--red)"></div>
+    </div>
+    <!-- Current Watchlist -->
+    <div class="card overflow-hidden">
+      <div class="px-4 py-3 border-b text-sm font-semibold" style="border-color:var(--border)">Current Watchlist</div>
+      <div id="wl-list"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let watchlist   = [];
+let scanData    = [];
+let chartInst   = null;     // Lightweight Charts instance
+let activeChart = null;     // { yahoo, tf }
+let scanChart   = null;
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const fmt = (n, d=2) => n == null ? '—' : Number(n).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmtPct = n => n == null ? '—' : (n > 0 ? '+' : '') + n.toFixed(2) + '%';
+const changeColor = n => n > 0 ? 'var(--green)' : n < 0 ? 'var(--red)' : 'var(--muted)';
+const biasClass = b => b === 'LONG' ? 'badge-long' : b === 'SHORT' ? 'badge-short' : 'badge-neutral';
+const dirColor = d => d === 'LONG' ? 'var(--green)' : d === 'SHORT' ? 'var(--red)' : 'var(--muted)';
+
+function setLoading(on) {
+  $('loader').classList.toggle('hidden', !on);
+  if (!on) $('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+}
+
+async function api(path) {
+  const r = await fetch(path);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function showTab(name) {
+  ['brief','scanner','chart','watchlist'].forEach(t => {
+    $('tab-' + t).classList.toggle('hidden', t !== name);
+  });
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    b.classList.toggle('active', ['brief','scanner','chart','watchlist'][i] === name);
+  });
+  if (name === 'watchlist') renderWatchlist();
+  if (name === 'chart')     populateChartSelect();
+}
+
+// ── Watchlist ─────────────────────────────────────────────────────────────────
+async function loadWatchlist() {
+  watchlist = await api('/api/watchlist');
+}
+
+function renderWatchlist() {
+  const el = $('wl-list');
+  if (!watchlist.length) { el.innerHTML = '<div class="p-6 text-center text-sm" style="color:var(--muted)">No symbols</div>'; return; }
+  const typeColors = { stock:'var(--blue)', crypto:'var(--purple)', forex:'var(--yellow)', index:'var(--muted)', commodity:'var(--green)' };
+  el.innerHTML = watchlist.map(s => `
+    <div class="flex items-center justify-between px-4 py-3 border-b" style="border-color:var(--border)">
+      <div class="flex items-center gap-3">
+        <div class="text-xs px-2 py-0.5 rounded" style="background:var(--border);color:${typeColors[s.type]||'var(--muted)'}">${s.type}</div>
+        <div>
+          <div class="font-semibold text-sm">${s.id}</div>
+          <div class="text-xs" style="color:var(--muted)">${s.label} · Yahoo: ${s.yahoo}</div>
+        </div>
+      </div>
+      <button class="btn-danger" onclick="removeSymbol('${s.id}')">Remove</button>
+    </div>
+  `).join('');
+}
+
+async function addSymbol() {
+  const id    = $('add-id').value.trim().toUpperCase();
+  const yahoo = $('add-yahoo').value.trim();
+  const label = $('add-label').value.trim() || id;
+  const tv    = $('add-tv').value.trim() || id;
+  const type  = $('add-type').value;
+  const errEl = $('add-error');
+
+  if (!id || !yahoo) { errEl.textContent = 'ID and Yahoo ticker are required'; errEl.classList.remove('hidden'); return; }
+  errEl.classList.add('hidden');
+
+  try {
+    const r = await fetch('/api/watchlist', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id,yahoo,label,tv,type}) });
+    if (!r.ok) { const e = await r.json(); errEl.textContent = e.error; errEl.classList.remove('hidden'); return; }
+    watchlist.push(await r.json());
+    ['add-id','add-yahoo','add-label','add-tv'].forEach(f => $(f).value = '');
+    renderWatchlist();
+    populateChartSelect();
+  } catch(e) { errEl.textContent = e.message; errEl.classList.remove('hidden'); }
+}
+
+async function removeSymbol(id) {
+  if (!confirm(`Remove ${id} from watchlist?`)) return;
+  await fetch('/api/watchlist/' + id, { method:'DELETE' });
+  watchlist = watchlist.filter(s => s.id !== id);
+  renderWatchlist();
+  populateChartSelect();
+}
+
+// ── Daily Brief ───────────────────────────────────────────────────────────────
+async function loadBrief() {
+  setLoading(true);
+  $('brief-content').innerHTML = '<div class="text-center py-12" style="color:var(--muted)"><svg class="spin mx-auto mb-2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>Fetching weekly data…</div>';
+  try {
+    const data = await api('/api/brief');
+    renderBrief(data);
+  } catch(e) {
+    $('brief-content').innerHTML = `<div class="text-sm p-4" style="color:var(--red)">${e.message}</div>`;
+  }
+  setLoading(false);
+}
+
+function renderBrief(data) {
+  const longs    = data.filter(d => d.brief.bias === 'LONG').length;
+  const shorts   = data.filter(d => d.brief.bias === 'SHORT').length;
+  const neutrals = data.filter(d => d.brief.bias === 'NEUTRAL').length;
+
+  const sumEl = $('brief-summary');
+  sumEl.classList.remove('hidden');
+  sumEl.innerHTML = `
+    <div class="flex gap-6">
+      <span><span class="font-semibold" style="color:var(--green)">${longs}</span> Long</span>
+      <span><span class="font-semibold" style="color:var(--red)">${shorts}</span> Short</span>
+      <span><span class="font-semibold" style="color:var(--muted)">${neutrals}</span> Neutral</span>
+      <span style="color:var(--muted)">· ${data.length} symbols · Weekly timeframe</span>
+    </div>
+  `;
+
+  $('brief-content').innerHTML = data.map(d => {
+    const b = d.brief;
+    const chg = d.change != null ? `<span style="color:${changeColor(d.change)}">${fmtPct(d.change)}</span>` : '';
+    return `
+    <div class="card p-4 flex flex-col sm:flex-row sm:items-start gap-4">
+      <div class="sm:w-48 flex-shrink-0">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="font-semibold text-sm">${d.id}</span>
+          <span class="badge ${biasClass(b.bias)}">${b.bias}</span>
+        </div>
+        <div class="text-xs" style="color:var(--muted)">${d.label}</div>
+        <div class="mt-2 text-sm font-mono">${fmt(d.price)} ${chg}</div>
+        <div class="text-xs mt-1" style="color:var(--muted)">
+          W: <span style="color:${b.weekChange >= 0 ? 'var(--green)' : 'var(--red)'}">${b.weekChange >= 0 ? '+' : ''}${b.weekChange}%</span>
+        </div>
+      </div>
+      <div class="flex-1 space-y-2 text-sm">
+        <div>
+          <span class="text-xs font-semibold uppercase tracking-wide" style="color:var(--muted)">Key Level</span>
+          <span class="ml-2 font-mono">${b.keyLevel}</span>
+          <span class="ml-1 text-xs" style="color:var(--muted)">(${b.keyLevelType})</span>
+        </div>
+        <div>
+          <span class="text-xs font-semibold uppercase tracking-wide" style="color:var(--muted)">Watch</span>
+          <span class="ml-2" style="color:var(--text)">${b.watch}</span>
+        </div>
+      </div>
+    </div>
+  `}).join('');
+}
+
+// ── EAP Scanner ───────────────────────────────────────────────────────────────
+async function loadScanner() {
+  setLoading(true);
+  $('scanner-list').innerHTML = '<div class="p-6 text-center text-sm" style="color:var(--muted)"><svg class="spin mx-auto mb-2" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>Running strategy scan…</div>';
+  try {
+    scanData = await api('/api/strategy/eap');
+    renderScannerList();
+  } catch(e) {
+    $('scanner-list').innerHTML = `<div class="p-4 text-sm" style="color:var(--red)">${e.message}</div>`;
+  }
+  setLoading(false);
+}
+
+function renderScannerList() {
+  if (!scanData.length) { $('scanner-list').innerHTML = '<div class="p-6 text-sm" style="color:var(--muted)">No results</div>'; return; }
+  $('scanner-list').innerHTML = scanData.map((s, i) => {
+    const a    = s.analysis;
+    const score = a.score || 0;
+    const fillColor = score >= 80 ? 'var(--green)' : score >= 50 ? 'var(--yellow)' : 'var(--blue)';
+    const chg  = s.change != null ? `<span style="color:${changeColor(s.change)}">${fmtPct(s.change)}</span>` : '';
+    return `
+    <div class="symbol-row" id="srow-${i}" onclick="selectScanSymbol(${i})">
+      <div class="flex items-center justify-between mb-1.5">
+        <div class="flex items-center gap-2">
+          <span class="font-semibold text-sm">${s.id}</span>
+          <span class="badge ${biasClass(a.direction)}">${a.direction}</span>
+        </div>
+        <div class="text-xs font-mono">${s.price != null ? fmt(s.price) : '—'} ${chg}</div>
+      </div>
+      <div class="score-bar mb-1">
+        <div class="score-fill" style="width:${score}%;background:${fillColor}"></div>
+      </div>
+      <div class="flex justify-between text-xs" style="color:var(--muted)">
+        <span>${a.label}</span>
+        <span>${score}%</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function selectScanSymbol(i) {
+  document.querySelectorAll('.symbol-row').forEach(r => r.classList.remove('active'));
+  const row = $('srow-' + i);
+  if (row) row.classList.add('active');
+
+  const s = scanData[i];
+  const a = s.analysis;
+  const detailEl = $('scanner-detail');
+
+  detailEl.innerHTML = `
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="font-bold text-lg">${s.id}</span>
+          <span class="badge ${biasClass(a.direction)}">${a.direction}</span>
+          <span class="text-sm" style="color:var(--muted)">${s.label}</span>
+        </div>
+        <div class="text-sm mt-1" style="color:var(--muted)">${a.trend} · Score: <span style="color:${a.score>=80?'var(--green)':a.score>=50?'var(--yellow)':'var(--blue)'}">${a.score}%</span></div>
+      </div>
+      <div class="text-right">
+        <div class="font-mono text-lg">${fmt(s.price)}</div>
+        <div class="text-xs" style="color:${changeColor(s.change)}">${fmtPct(s.change)}</div>
+      </div>
+    </div>
+    <div id="scan-chart-${i}" class="chart-container mb-4"></div>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-4">
+      ${makeStatCard('EMA 20',  a.current.e20,   a.current.close)}
+      ${makeStatCard('EMA 50',  a.current.e50,   a.current.close)}
+      ${makeStatCard('EMA 200', a.current.e200,  a.current.close)}
+      ${makeStatCard('ATR 14',  a.current.atr,   null)}
+    </div>
+    <div class="grid grid-cols-2 gap-3 text-sm">
+      <div class="card p-3">
+        <div class="text-xs mb-1" style="color:var(--muted)">Last Pivot High</div>
+        <div class="font-mono font-semibold" style="color:var(--green)">${fmt(a.current.lastPH)}</div>
+      </div>
+      <div class="card p-3">
+        <div class="text-xs mb-1" style="color:var(--muted)">Last Pivot Low</div>
+        <div class="font-mono font-semibold" style="color:var(--red)">${fmt(a.current.lastPL)}</div>
+      </div>
+    </div>
+  `;
+
+  // Build chart
+  try {
+    const data = await api(`/api/chart/${encodeURIComponent(s.yahoo)}?tf=1d&bars=250`);
+    buildChart(`scan-chart-${i}`, data, a);
+  } catch(e) {
+    const el = $(`scan-chart-${i}`);
+    if (el) el.innerHTML = `<div class="flex items-center justify-center h-full text-xs" style="color:var(--muted)">Chart unavailable: ${e.message}</div>`;
+  }
+}
+
+function makeStatCard(label, value, close) {
+  const diff = (close != null && value != null) ? ((close - value) / value * 100) : null;
+  const color = diff == null ? 'var(--text)' : diff > 0 ? 'var(--green)' : 'var(--red)';
+  return `
+    <div class="card p-3">
+      <div class="text-xs mb-1" style="color:var(--muted)">${label}</div>
+      <div class="font-mono font-semibold" style="color:${color}">${fmt(value)}</div>
+      ${diff != null ? `<div class="text-xs mt-0.5" style="color:${color}">${diff>0?'+':''}${diff.toFixed(1)}%</div>` : ''}
+    </div>`;
+}
+
+// ── Chart Analyzer ────────────────────────────────────────────────────────────
+function populateChartSelect() {
+  const sel = $('chart-symbol');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Select symbol…</option>' +
+    watchlist.map(s => `<option value="${s.yahoo}" ${s.yahoo===cur?'selected':''}>${s.id} – ${s.label}</option>`).join('');
+}
+
+async function loadChartAnalysis() {
+  const yahoo = $('chart-symbol').value;
+  const tf    = $('chart-tf').value;
+  if (!yahoo) return;
+
+  setLoading(true);
+  $('narrative-panel').innerHTML = '<div class="text-sm" style="color:var(--muted)">Loading…</div>';
+
+  try {
+    const [chartData, narrative] = await Promise.all([
+      api(`/api/chart/${encodeURIComponent(yahoo)}?tf=${tf}&bars=250`),
+      api(`/api/strategy/narrative/${encodeURIComponent(yahoo)}`),
+    ]);
+    buildChart('chart-main', chartData, chartData.analysis);
+    renderNarrative(narrative);
+  } catch(e) {
+    $('narrative-panel').innerHTML = `<div class="text-sm" style="color:var(--red)">${e.message}</div>`;
+  }
+  setLoading(false);
+}
+
+function renderNarrative(n) {
+  if (!n || n.error) {
+    $('narrative-panel').innerHTML = '<div class="text-sm" style="color:var(--muted)">Narrative unavailable</div>';
+    return;
+  }
+  $('narrative-panel').innerHTML = `
+    <div class="flex items-center gap-2 mb-4">
+      <div class="badge ${biasClass(n.primaryTrend)}">${n.primaryTrend}</div>
+      <span class="text-sm font-semibold">${fmt(n.close)}</span>
+    </div>
+
+    <div class="narrative-section mb-4">
+      <div class="text-xs font-semibold uppercase tracking-wide mb-1" style="color:var(--blue)">Trend Structure</div>
+      <div class="text-sm">${n.trendStructure}</div>
+    </div>
+
+    <div class="narrative-section mb-4" style="border-color:var(--yellow)">
+      <div class="text-xs font-semibold uppercase tracking-wide mb-1" style="color:var(--yellow)">Momentum</div>
+      <div class="text-sm">${n.momentum}</div>
+    </div>
+
+    <div class="mb-4">
+      <div class="text-xs font-semibold uppercase tracking-wide mb-2" style="color:var(--muted)">Key Levels</div>
+      <div>${(n.keyLevels || []).map(l => `<div class="level-chip"><span style="color:var(--muted)">${l.type}</span><span class="font-mono font-semibold">${fmt(l.price)}</span></div>`).join('')}</div>
+    </div>
+
+    <div class="narrative-section mb-4" style="border-color:var(--red)">
+      <div class="text-xs font-semibold uppercase tracking-wide mb-1" style="color:var(--red)">Bias Flip</div>
+      <div class="text-sm">${n.flipLabel}</div>
+    </div>
+
+    <div class="card p-3">
+      <div class="text-xs font-semibold uppercase tracking-wide mb-1" style="color:var(--green)">Watch Today</div>
+      <div class="text-sm">${n.watchToday}</div>
+    </div>
+  `;
+}
+
+// ── Lightweight Charts builder ────────────────────────────────────────────────
+function buildChart(containerId, data, analysis) {
+  const el = $(containerId);
+  if (!el) return;
+  el.innerHTML = '';
+
+  const chart = LightweightCharts.createChart(el, {
+    width:  el.clientWidth,
+    height: el.clientHeight || 420,
+    layout: { background: { color: '#161b22' }, textColor: '#8b949e' },
+    grid:   { vertLines: { color: '#21262d' }, horzLines: { color: '#21262d' } },
+    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+    rightPriceScale: { borderColor: '#21262d' },
+    timeScale: { borderColor: '#21262d', timeVisible: true, secondsVisible: false },
+    handleScroll: true,
+    handleScale:  true,
+  });
+
+  // Candles
+  const cSeries = chart.addCandlestickSeries({
+    upColor: '#26a69a', downColor: '#ef5350',
+    borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350',
+  });
+  if (data.candles?.length) cSeries.setData(data.candles);
+
+  // EMA lines
+  const ind = data.indicators || {};
+  if (ind.ema20?.length)  addLine(chart, ind.ema20,  '#f0b429', 1);
+  if (ind.ema50?.length)  addLine(chart, ind.ema50,  '#58a6ff', 1);
+  if (ind.ema200?.length) addLine(chart, ind.ema200, '#ef5350', 2);
+
+  // Pivot level lines
+  const levels = data.levels || {};
+  if (data.candles?.length) {
+    const first = data.candles[0].time;
+    const last  = data.candles[data.candles.length - 1].time;
+    if (levels.pivotHigh) addHorizontal(chart, levels.pivotHigh, first, last, 'rgba(38,166,154,0.6)', LightweightCharts.LineStyle.Dashed);
+    if (levels.pivotLow)  addHorizontal(chart, levels.pivotLow,  first, last, 'rgba(239,83,80,0.6)',  LightweightCharts.LineStyle.Dashed);
+  }
+
+  // Signal markers
+  const signals = (data.signals || []).slice(-50);
+  if (signals.length && cSeries) {
+    const markers = signals.map(s => ({
+      time:     s.time,
+      position: s.type === 'long' ? 'belowBar' : 'aboveBar',
+      color:    s.type === 'long' ? '#26a69a' : '#ef5350',
+      shape:    s.type === 'long' ? 'arrowUp'  : 'arrowDown',
+      text:     s.type === 'long' ? 'L'         : 'S',
+    }));
+    cSeries.setMarkers(markers);
+  }
+
+  // Auto-fit
+  chart.timeScale().fitContent();
+
+  // Resize observer
+  const ro = new ResizeObserver(() => chart.applyOptions({ width: el.clientWidth }));
+  ro.observe(el);
+}
+
+function addLine(chart, data, color, width) {
+  const s = chart.addLineSeries({ color, lineWidth: width, priceLineVisible: false, lastValueVisible: false });
+  s.setData(data);
+}
+
+function addHorizontal(chart, price, t1, t2, color, style) {
+  const s = chart.addLineSeries({ color, lineWidth: 1, lineStyle: style, priceLineVisible: false, lastValueVisible: false });
+  s.setData([{ time: t1, value: price }, { time: t2, value: price }]);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  await loadWatchlist();
+  populateChartSelect();
+  renderWatchlist();
+}
+
+init();
+</script>
+</body>
+</html>
